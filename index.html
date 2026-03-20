@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seguimiento de Licitaciones</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;}
+  :root{
+    --bg:#f5f4f0;--surface:#ffffff;
+    --border:rgba(0,0,0,0.09);--border-md:rgba(0,0,0,0.15);
+    --text:#1a1a18;--text-muted:#6b6b67;--text-faint:#aaaaa5;
+    --blue:#2060c8;--blue-light:#d6e4ff;--blue-mid:#b5d4f4;
+    --gray-seg:#ddddd8;--radius:12px;--radius-sm:8px;
+  }
+  body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;padding:2rem 1.5rem;}
+  header{max-width:960px;margin:0 auto 2rem;display:flex;align-items:baseline;gap:1rem;flex-wrap:wrap;}
+  h1{font-size:22px;font-weight:500;letter-spacing:-0.3px;}
+  .subtitle{font-size:13px;color:var(--text-muted);font-family:'DM Mono',monospace;}
+  .summary-cards{max-width:960px;margin:0 auto 1.5rem;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px;}
+  .card{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius-sm);padding:12px 14px;}
+  .card-label{font-size:11px;color:var(--text-muted);margin-bottom:4px;font-family:'DM Mono',monospace;text-transform:uppercase;letter-spacing:0.5px;}
+  .card-value{font-size:22px;font-weight:500;}
+  .card-value.blue{color:var(--blue);} .card-value.green{color:#1a7a4a;} .card-value.muted{color:var(--text-muted);}
+  .controls{max-width:960px;margin:0 auto 0.75rem;display:flex;gap:8px;flex-wrap:wrap;align-items:center;}
+  .filter-btn{font-size:12px;font-family:'DM Sans',sans-serif;padding:5px 14px;border-radius:99px;border:0.5px solid var(--border-md);background:transparent;color:var(--text-muted);cursor:pointer;transition:all 0.15s;}
+  .filter-btn:hover{background:var(--surface);color:var(--text);}
+  .filter-btn.active{background:var(--text);color:#fff;border-color:var(--text);}
+  .filter-btn.pub.active{background:#1a5c9e;border-color:#1a5c9e;color:#fff;}
+  .filter-btn.priv.active{background:#6d28d9;border-color:#6d28d9;color:#fff;}
+  .filter-btn.conc.active{background:#1a7a4a;border-color:#1a7a4a;color:#fff;}
+  .sort-label{font-size:12px;color:var(--text-faint);margin-left:auto;}
+  select{font-size:12px;font-family:'DM Sans',sans-serif;padding:5px 10px;border-radius:var(--radius-sm);border:0.5px solid var(--border-md);background:var(--surface);color:var(--text);cursor:pointer;}
+  .divider{width:1px;height:20px;background:var(--border-md);margin:0 2px;flex-shrink:0;}
+  .legend{max-width:960px;margin:0 auto 1.2rem;display:flex;flex-wrap:wrap;gap:12px;font-size:11px;color:var(--text-muted);align-items:center;}
+  .legend span{display:flex;align-items:center;gap:5px;}
+  .ldot{width:10px;height:10px;border-radius:2px;flex-shrink:0;}
+  .list{max-width:960px;margin:0 auto;display:flex;flex-direction:column;gap:6px;}
+  .row{background:var(--surface);border:0.5px solid var(--border);border-radius:var(--radius);overflow:hidden;cursor:pointer;transition:border-color 0.15s,box-shadow 0.15s;}
+  .row:hover{border-color:var(--border-md);box-shadow:0 2px 8px rgba(0,0,0,0.05);}
+  .row.expanded{border-color:var(--border-md);}
+  .row-head{display:flex;align-items:center;gap:10px;padding:11px 16px;}
+  .row-name{font-size:13px;font-weight:500;flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .badge{display:inline-block;font-size:10px;font-weight:500;padding:2px 8px;border-radius:99px;white-space:nowrap;flex-shrink:0;}
+  .badge.pub{background:#dbeafe;color:#1a5c9e;} .badge.priv{background:#ede9fe;color:#6d28d9;} .badge.conc{background:#d1fae5;color:#1a7a4a;}
+  .row-days{font-size:11px;font-family:'DM Mono',monospace;color:var(--text-faint);white-space:nowrap;flex-shrink:0;}
+  .row-days.recent{color:#1a7a4a;} .row-days.old{color:#b45309;}
+  .row-last{font-size:11px;color:var(--text-muted);white-space:nowrap;max-width:150px;overflow:hidden;text-overflow:ellipsis;text-align:right;font-family:'DM Mono',monospace;flex-shrink:0;}
+  .row-pct{font-size:13px;font-weight:500;font-family:'DM Mono',monospace;min-width:38px;text-align:right;color:var(--blue);flex-shrink:0;}
+  .row-pct.zero{color:var(--text-faint);} .row-pct.full{color:#1a7a4a;}
+  .chevron{width:14px;height:14px;color:var(--text-faint);flex-shrink:0;transition:transform 0.2s;}
+  .row.expanded .chevron{transform:rotate(180deg);}
+  .track{display:flex;height:4px;margin:0 16px 11px;border-radius:2px;overflow:hidden;gap:1px;}
+  .seg{flex:1;}
+  .detail{display:none;border-top:0.5px solid var(--border);padding:14px 16px;background:#fafaf8;}
+  .detail.open{display:block;}
+  .detail-meta{display:flex;gap:20px;margin-bottom:12px;flex-wrap:wrap;padding-bottom:10px;border-bottom:0.5px solid var(--border);}
+  .detail-meta-item{font-size:11px;color:var(--text-muted);font-family:'DM Mono',monospace;}
+  .detail-meta-item strong{color:var(--text);font-weight:500;}
+  .stage-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px 16px;}
+  .stage-item{display:flex;align-items:flex-start;gap:8px;}
+  .sdot{width:7px;height:7px;border-radius:50%;flex-shrink:0;margin-top:4px;}
+  .sinfo{display:flex;flex-direction:column;gap:1px;}
+  .sname{font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.4px;font-family:'DM Mono',monospace;}
+  .sdate{font-size:12px;font-weight:500;font-family:'DM Mono',monospace;}
+  .sdate.done{color:var(--text);} .sdate.skip{color:var(--text-faint);font-style:italic;} .sdate.pending{color:var(--text-faint);}
+  .badge-last{display:inline-block;font-size:9px;background:var(--blue-light);color:var(--blue);border-radius:4px;padding:1px 5px;margin-left:4px;vertical-align:middle;font-family:'DM Sans',sans-serif;font-weight:500;}
+  .hint{max-width:960px;margin:1rem auto 0;text-align:center;font-size:11px;color:var(--text-faint);font-family:'DM Mono',monospace;}
+  @media(max-width:680px){
+    .summary-cards{grid-template-columns:repeat(2,1fr);}
+    .stage-grid{grid-template-columns:repeat(2,minmax(0,1fr));}
+    .row-last,.row-days{display:none;}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Seguimiento de licitaciones</h1>
+  <span class="subtitle">— actualizado 20/03/2026 a las 13:12</span>
+</header>
+<div class="summary-cards" id="summary"></div>
+<div class="controls">
+  <button class="filter-btn active" data-f="todas">Todas</button>
+  <button class="filter-btn" data-f="en-curso">En curso</button>
+  <button class="filter-btn" data-f="completada">OC emitida</button>
+  <button class="filter-btn" data-f="sin-iniciar">Sin iniciar</button>
+  <div class="divider"></div>
+  <button class="filter-btn pub" data-f="publica">Licitacion publica</button>
+  <button class="filter-btn priv" data-f="privada">Licitacion privada</button>
+  <button class="filter-btn conc" data-f="concurso">Concurso de precios</button>
+  <span class="sort-label">Ordenar:</span>
+  <select id="sort-sel">
+    <option value="progress-desc">Mayor avance</option>
+    <option value="progress-asc">Menor avance</option>
+    <option value="days-desc">Mas dias sin mover</option>
+    <option value="alpha">Alfabetico</option>
+  </select>
+</div>
+<div class="legend" style="margin-top:0.75rem;">
+  <span><span class="ldot" style="background:#2060c8"></span>Completada</span>
+  <span><span class="ldot" style="background:#ddddd8"></span>Pendiente</span>
+  <span><span class="ldot" style="background:#b5d4f4"></span>No aplica</span>
+  <span style="margin-left:6px;"><span class="badge pub">publica</span></span>
+  <span><span class="badge priv">privada</span></span>
+  <span><span class="badge conc">concurso</span></span>
+</div>
+<div class="list" id="list"></div>
+<p class="hint">Hace clic en cada fila para ver el detalle de fechas por etapa.</p>
+
+<script>
+const STAGES = [{key:"sum_compras",label:"Pase SUM -> Compras"},{key:"apertura",label:"Apertura / 1 llamado"},{key:"seg_llamado",label:"2 llamado"},{key:"compras_salud",label:"Pase Compras -> Salud"},{key:"it_ca",label:"Pase IT -> CA/Compras"},{key:"legal_tec",label:"Pase a Legal/Tecnica"},{key:"despacho",label:"Pase a Despacho"},{key:"decreto",label:"Decreto"},{key:"oc",label:"OC"}];
+const RAW = [
+  {desc:"Servicio de Anestesiolog\u00eda",tipo:"publica",sum_compras:{"v": "13/1/2026", "s": "done"},apertura:{"v": "18/12/2025", "s": "done"},seg_llamado:{"v": "23/4/2026", "s": "done"},compras_salud:null,it_ca:null,legal_tec:null,despacho:null,decreto:null,oc:null},
+  {desc:"Contrataci\u00f3n del Servicio de Mantenimiento terapeutico control de plagas",tipo:"publica",sum_compras:{"v": "1/10/2025", "s": "done"},apertura:{"v": "8/1/2026", "s": "done"},seg_llamado:{"v": "-", "s": "skip"},compras_salud:{"v": "21/1/2026", "s": "done"},it_ca:{"v": "4/2/2026", "s": "done"},legal_tec:null,despacho:null,decreto:null,oc:null},
+  {desc:"Pack ropa est\u00e9ril descartable",tipo:"publica",sum_compras:{"v": "16/10/2025", "s": "done"},apertura:{"v": "3/12/2025", "s": "done"},seg_llamado:{"v": "-", "s": "skip"},compras_salud:{"v": "22/12/2025", "s": "done"},it_ca:{"v": "17/2/2026", "s": "done"},legal_tec:null,despacho:null,decreto:null,oc:null},
+  {desc:"Adquisicion de citocentrifuga",tipo:"publica",sum_compras:{"v": "29/12/2025", "s": "done"},apertura:{"v": "29/9/2025", "s": "done"},seg_llamado:{"v": "20/1/2026", "s": "done"},compras_salud:{"v": "5/2/2026", "s": "done"},it_ca:{"v": "2/3/2026", "s": "done"},legal_tec:null,despacho:null,decreto:null,oc:null},
+  {desc:"Insumos para Endoscop\u00edas Digestivas",tipo:"publica",sum_compras:{"v": "17/12/2024", "s": "done"},apertura:{"v": "13/1/2026", "s": "done"},seg_llamado:{"v": "-", "s": "skip"},compras_salud:{"v": "21/1/2026", "s": "done"},it_ca:{"v": "16/3/2026", "s": "done"},legal_tec:null,despacho:null,decreto:null,oc:null},
+  {desc:"Adquisicion de Sevofluorano 250 ml.",tipo:"publica",sum_compras:{"v": "22/12/2025", "s": "done"},apertura:{"v": "22/1/2026", "s": "done"},seg_llamado:{"v": "-", "s": "skip"},compras_salud:{"v": "5/2/2026", "s": "done"},it_ca:null,legal_tec:null,despacho:null,decreto:null,oc:null},
+  {desc:"Ec\u00f3grafo Multiprop\u00f3sito",tipo:"concurso",sum_compras:{"v": "10/2/2026", "s": "done"},apertura:{"v": "26/2/2026", "s": "done"},seg_llamado:{"v": "-", "s": "skip"},compras_salud:{"v": "9/3/2026", "s": "done"},it_ca:{"v": "18/3/2026", "s": "done"},legal_tec:null,despacho:null,decreto:null,oc:null},
+  {desc:"Mobiliario: provisi\u00f3n y colocaci\u00f3n",tipo:"concurso",sum_compras:{"v": "5/1/2026", "s": "done"},apertura:{"v": "13/10/2025", "s": "done"},seg_llamado:{"v": "16/1/2026", "s": "done"},compras_salud:{"v": "21/1/2026", "s": "done"},it_ca:{"v": "10/3/2026", "s": "done"},legal_tec:{"v": "13/3/2026", "s": "done"},despacho:null,decreto:null,oc:null},
+  {desc:"Adquisici\u00f3n de l\u00edquidos para contador hematol\u00f3gico",tipo:"concurso",sum_compras:{"v": "29/8/2025", "s": "done"},apertura:{"v": "9/9/2025", "s": "done"},seg_llamado:{"v": "-", "s": "skip"},compras_salud:{"v": "16/9/2025", "s": "done"},it_ca:{"v": "25/2/2026", "s": "done"},legal_tec:null,despacho:null,decreto:null,oc:null},
+  {desc:"Alquiler cami\u00f3n para operativos de salud en la v\u00eda p\u00fablica",tipo:"concurso",sum_compras:{"v": "18/12/2025", "s": "done"},apertura:{"v": "5/1/2026", "s": "done"},seg_llamado:{"v": "-", "s": "skip"},compras_salud:{"v": "22/1/2026", "s": "done"},it_ca:{"v": "28/1/2026", "s": "done"},legal_tec:{"v": "23/2/2026", "s": "done"},despacho:{"v": "3/3/2026", "s": "done"},decreto:{"v": "17/03", "s": "done"},oc:{"v": "18/03/2026", "s": "done"}},
+  {desc:"Servicio Estudios medicina nuclear",tipo:"concurso",sum_compras:{"v": "16/12/2025", "s": "done"},apertura:{"v": "29/12/2025", "s": "done"},seg_llamado:{"v": "-", "s": "skip"},compras_salud:{"v": "9/1/2026", "s": "done"},it_ca:{"v": "21/1/2026", "s": "done"},legal_tec:{"v": "23/1/2026", "s": "done"},despacho:{"v": "10/2/2026", "s": "done"},decreto:{"v": "12/3/2026", "s": "done"},oc:{"v": "13/3/2026", "s": "done"}},
+  {desc:"Serv. Traslado pacientes en ambulancia",tipo:"publica",sum_compras:{"v": "6/1/2026", "s": "done"},apertura:{"v": "10/3/2026", "s": "done"},seg_llamado:{"v": "-", "s": "skip"},compras_salud:null,it_ca:null,legal_tec:null,despacho:null,decreto:null,oc:null},
+  {desc:"Insumos bacteriologia y descartables de laboratorio",tipo:"publica",sum_compras:{"v": "10/2/2026", "s": "done"},apertura:{"v": "7/4/2026", "s": "done"},seg_llamado:{"v": "-", "s": "skip"},compras_salud:null,it_ca:null,legal_tec:null,despacho:null,decreto:null,oc:null},
+  {desc:"Insumos de Hemoterapia",tipo:"publica",sum_compras:{"v": "9/3/2026", "s": "done"},apertura:{"v": "29/4/2026", "s": "done"},seg_llamado:{"v": "-", "s": "skip"},compras_salud:null,it_ca:null,legal_tec:null,despacho:null,decreto:null,oc:null},
+  {desc:"Servicio lavado de ropa reutilizable hospitales",tipo:"publica",sum_compras:{"v": "2/3/2026", "s": "done"},apertura:{"v": "21/4/2026", "s": "done"},seg_llamado:{"v": "-", "s": "skip"},compras_salud:null,it_ca:null,legal_tec:null,despacho:null,decreto:null,oc:null},
+  {desc:"Qu\u00edmica Cl\u00ednica - Hematolog\u00eda - Coagulometr\u00eda - Serolog\u00eda - Hormonas y Marcadores",tipo:"publica",sum_compras:{"v": "9/3/2026", "s": "done"},apertura:{"v": "-", "s": "skip"},seg_llamado:{"v": "-", "s": "skip"},compras_salud:null,it_ca:null,legal_tec:null,despacho:null,decreto:null,oc:null},
+  {desc:"Contrataci\u00f3n del servicio de pr\u00e1cticas de laboratorio",tipo:"publica",sum_compras:{"v": "9/3/2026", "s": "done"},apertura:{"v": "24/4/2026", "s": "done"},seg_llamado:{"v": "-", "s": "skip"},compras_salud:null,it_ca:null,legal_tec:null,despacho:null,decreto:null,oc:null},
+  {desc:"Materiales Descartables",tipo:"publica",sum_compras:{"v": "9/3/2026", "s": "done"},apertura:{"v": "30/4/2026", "s": "done"},seg_llamado:{"v": "-", "s": "skip"},compras_salud:null,it_ca:null,legal_tec:null,despacho:null,decreto:null,oc:null},
+  {desc:"Adquisicion peliculas laser",tipo:"concurso",sum_compras:{"v": "13/1/2026", "s": "done"},apertura:{"v": "23/1/2026", "s": "done"},seg_llamado:{"v": "-", "s": "skip"},compras_salud:{"v": "5/2/2026", "s": "done"},it_ca:{"v": "3/3/2026", "s": "done"},legal_tec:{"v": "6/3/2026", "s": "done"},despacho:null,decreto:null,oc:null},
+  {desc:"Instrumental quirurgico",tipo:"concurso",sum_compras:{"v": "10/2/2026", "s": "done"},apertura:{"v": "20/2/2026", "s": "done"},seg_llamado:{"v": "-", "s": "skip"},compras_salud:{"v": "2/3/2026", "s": "done"},it_ca:null,legal_tec:null,despacho:null,decreto:null,oc:null},
+  {desc:"Caja esterilizada en oxido de etileno",tipo:"concurso",sum_compras:{"v": "11/2/2026", "s": "done"},apertura:{"v": "24/2/2026", "s": "done"},seg_llamado:{"v": "-", "s": "skip"},compras_salud:{"v": "3/3/2026", "s": "done"},it_ca:null,legal_tec:null,despacho:null,decreto:null,oc:null},
+  {desc:"Insumos para esterilizaci\u00f3n",tipo:"concurso",sum_compras:{"v": "27/2/2026", "s": "done"},apertura:{"v": "12/3/2026", "s": "done"},seg_llamado:{"v": "-", "s": "skip"},compras_salud:null,it_ca:null,legal_tec:null,despacho:null,decreto:null,oc:null},
+];
+
+function parseDate(str){
+  if(!str||str==='-') return null;
+  const p=str.split('/');
+  if(p.length!==3) return null;
+  return new Date(parseInt(p[2]),parseInt(p[1])-1,parseInt(p[0]));
+}
+function daysSince(str){
+  const d=parseDate(str);if(!d) return null;
+  const today=new Date();today.setHours(0,0,0,0);
+  const diff=Math.floor((today-d)/(1000*60*60*24));
+  return diff>=0?diff:null;
+}
+function countDone(item){
+  let c=0;for(let s of STAGES){const cell=item[s.key];if(!cell)break;if(cell.s==='done')c++;}return c;
+}
+function getLastDone(item){
+  let last=null,lastLabel=null;
+  for(let s of STAGES){const cell=item[s.key];if(!cell)break;if(cell.s==='done'){last=cell.v;lastLabel=s.label;}}
+  return {last,lastLabel};
+}
+function getStatus(item){
+  if(item.oc&&item.oc.s==='done') return 'completada';
+  if(!item[STAGES[0].key]) return 'sin-iniciar';
+  return 'en-curso';
+}
+function calcPct(item,status){
+  const ds=STAGES.filter(s=>{const c=item[s.key];return c&&(c.s==='done'||c.s==='skip');}).length;
+  if(status==='completada') return 100;
+  return Math.min(99,Math.round((ds/STAGES.length)*100));
+}
+function segColor(cell){
+  if(!cell) return '#ddddd8';
+  if(cell.s==='skip') return '#b5d4f4';
+  if(cell.s==='done') return '#2060c8';
+  return '#ddddd8';
+}
+function tipoBadge(tipo){
+  const map={publica:['pub','publica'],privada:['priv','privada'],concurso:['conc','concurso']};
+  const [cls,lbl]=map[tipo]||['',''];
+  return `<span class="badge ${cls}">${lbl}</span>`;
+}
+function tipoLabel(tipo){
+  return {publica:'Licitacion publica',privada:'Licitacion privada',concurso:'Concurso de precios'}[tipo]||'';
+}
+
+const data=RAW.map(d=>{
+  const {last,lastLabel}=getLastDone(d);
+  const status=getStatus(d);
+  const pct=calcPct(d,status);
+  const dias=daysSince(last);
+  return {...d,_done:countDone(d),_pct:pct,_status:status,_last:last,_lastLabel:lastLabel,_dias:dias};
+});
+
+let activeFilter='todas',activeSort='progress-desc';
+
+function updateSummary(items){
+  const t=items.length,ec=items.filter(i=>i._status==='en-curso').length,
+        co=items.filter(i=>i._status==='completada').length,
+        si=items.filter(i=>i._status==='sin-iniciar').length;
+  document.getElementById('summary').innerHTML=`
+    <div class="card"><div class="card-label">Total</div><div class="card-value">${t}</div></div>
+    <div class="card"><div class="card-label">En curso</div><div class="card-value blue">${ec}</div></div>
+    <div class="card"><div class="card-label">OC emitida</div><div class="card-value green">${co}</div></div>
+    <div class="card"><div class="card-label">Sin iniciar</div><div class="card-value muted">${si}</div></div>`;
+}
+
+function render(){
+  let items=[...data];
+  const estadoF=['en-curso','completada','sin-iniciar'];
+  const tipoF=['publica','privada','concurso'];
+  if(estadoF.includes(activeFilter)) items=items.filter(i=>i._status===activeFilter);
+  else if(tipoF.includes(activeFilter)) items=items.filter(i=>i.tipo===activeFilter);
+
+  if(activeSort==='progress-desc') items.sort((a,b)=>b._pct-a._pct);
+  else if(activeSort==='progress-asc') items.sort((a,b)=>a._pct-b._pct);
+  else if(activeSort==='days-desc') items.sort((a,b)=>(b._dias??-1)-(a._dias??-1));
+  else items.sort((a,b)=>a.desc.localeCompare(b.desc));
+
+  updateSummary(items);
+  const list=document.getElementById('list');
+  list.innerHTML='';
+  if(!items.length){list.innerHTML='<p style="color:#aaaaa5;font-size:13px;text-align:center;padding:2rem;">Sin resultados.</p>';return;}
+
+  items.forEach(item=>{
+    const pct=item._pct;
+    let pctClass='row-pct';if(pct===0)pctClass+=' zero';if(pct===100)pctClass+=' full';
+    let diasTxt='',diasClass='row-days';
+    if(item._dias!==null){
+      diasTxt=item._dias===0?'hoy':item._dias===1?'hace 1 dia':`hace ${item._dias} dias`;
+      if(item._dias<=7) diasClass+=' recent';
+      else if(item._dias>=30) diasClass+=' old';
+    }
+    const row=document.createElement('div');
+    row.className='row';
+    row.innerHTML=`
+      <div class="row-head">
+        <span class="row-name">${item.desc}</span>
+        ${tipoBadge(item.tipo)}
+        <span class="${diasClass}">${diasTxt}</span>
+        <span class="row-last">${item._lastLabel||'Sin iniciar'}</span>
+        <span class="${pctClass}">${pct}%</span>
+        <svg class="chevron" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M4 6l4 4 4-4"/></svg>
+      </div>
+      <div class="track">
+        ${STAGES.map(s=>{const c=item[s.key];return`<div class="seg" style="background:${segColor(c)}" title="${s.label}: ${c?(c.s==='skip'?'no aplica':c.v):'pendiente'}"></div>`;} ).join('')}
+      </div>
+      <div class="detail">
+        <div class="detail-meta">
+          <div class="detail-meta-item">Tipo: <strong>${tipoLabel(item.tipo)}</strong></div>
+          <div class="detail-meta-item">Ultimo pase: <strong>${item._last||'—'}</strong>${item._dias!==null?` <span style="color:var(--text-faint)">(${diasTxt})</span>`:''}</div>
+          <div class="detail-meta-item">Avance: <strong>${pct}%</strong></div>
+        </div>
+        <div class="stage-grid">
+          ${STAGES.map(s=>{
+            const c=item[s.key];
+            const isLast=item._last&&c&&c.v===item._last&&c.s==='done';
+            let dotColor='#ddddd8';if(c) dotColor=c.s==='skip'?'#b5d4f4':'#2060c8';
+            const dateClass=c?(c.s==='skip'?'sdate skip':'sdate done'):'sdate pending';
+            return`<div class="stage-item"><div class="sdot" style="background:${dotColor}"></div><div class="sinfo"><div class="sname">${s.label}${isLast?'<span class="badge-last">ultimo pase</span>':''}</div><div class="${dateClass}">${c?(c.s==='skip'?'no aplica':c.v):'—'}</div></div></div>`;
+          }).join('')}
+        </div>
+      </div>`;
+    row.querySelector('.row-head').addEventListener('click',()=>{row.classList.toggle('expanded');row.querySelector('.detail').classList.toggle('open');});
+    list.appendChild(row);
+  });
+}
+
+document.querySelectorAll('.filter-btn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    activeFilter=btn.dataset.f;
+    document.querySelectorAll('.filter-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');render();
+  });
+});
+document.getElementById('sort-sel').addEventListener('change',e=>{activeSort=e.target.value;render();});
+render();
+</script>
+</body>
+</html>
